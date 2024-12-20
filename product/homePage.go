@@ -4,40 +4,41 @@ import (
 	"context"
 	"html/template"
 	"net/http"
-	
+	"time"
+
 	"onlinestore/mongoDB"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 func HomePage(w http.ResponseWriter, r *http.Request) {
-    // Получаем продукты из базы данных
-    collection := mongoDB.GetCollection()
-    cursor, err := collection.Find(context.TODO(), bson.M{})
-    if err != nil {
-        http.Error(w, "Error fetching products", http.StatusInternalServerError)
-        return
-    }
-    defer cursor.Close(context.TODO())
+	tmpl, err := template.ParseFiles("templates/index.html")
+	if err != nil {
+		http.Error(w, "Failed to load template", http.StatusInternalServerError)
+		return
+	}
 
-    var products []Item
-    if err := cursor.All(context.TODO(), &products); err != nil {
-        http.Error(w, "Error reading products", http.StatusInternalServerError)
-        return
-    }
+	collection := mongoDB.GetCollection()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
 
-    // Рендерим шаблон
-    tmpl, err := template.ParseFiles("templates/index.html")
-    if err != nil {
-        http.Error(w, "Error loading template", http.StatusInternalServerError)
-        return
-    }
-    err = tmpl.Execute(w, struct {
-        Products []Item
-    }{
-        Products: products,
-    })
-    if err != nil {
-        http.Error(w, "Error rendering template", http.StatusInternalServerError)
-    }
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var products []Item
+	for cursor.Next(ctx) {
+		var item Item
+		cursor.Decode(&item)
+		products = append(products, item)
+	}
+
+	tmpl.Execute(w, struct {
+		Products []Item
+	}{
+		Products: products,
+	})
 }

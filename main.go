@@ -109,7 +109,6 @@ func main() {
 	http.HandleFunc("/delete", product.DeleteProduct)
 
 	log.Println("Starting server on http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal()
 	}

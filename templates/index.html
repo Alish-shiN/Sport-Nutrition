@@ -29,13 +29,13 @@
         <button type="submit">Add Product</button>
     </form>
 
+
     <!-- Read Products -->
     <h2>Products List</h2>
     {{if .Products}}
     <table>
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Name</th>
                 <th>Description</th>
                 <th>Price</th>
@@ -47,7 +47,6 @@
         <tbody>
             {{range .Products}}
             <tr>
-                <td>{{.ID}}</td>
                 <td>{{.Name}}</td>
                 <td>{{.Description}}</td>
                 <td>{{.Price}}</td>

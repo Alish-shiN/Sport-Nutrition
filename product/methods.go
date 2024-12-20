@@ -109,7 +109,7 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	id := r.FormValue("id")
+	id := atoi(r.FormValue("id"))
 	filter := bson.M{"id": id}
 	update := bson.M{
 		"$set": bson.M{
@@ -140,7 +140,7 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.FormValue("id")
+	id := atoi(r.FormValue("id"))
 	filter := bson.M{"id": id}
 
 	collection := mongoDB.GetCollection()
