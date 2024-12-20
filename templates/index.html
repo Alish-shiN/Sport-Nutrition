@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Operations</title>
+</head>
+<body>
+    <h1>Product Management</h1>
+
+    <!-- Create Product -->
+    <h2>Add Product</h2>
+    <form method="POST" action="/create">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br>
+
+        <label for="description">Description:</label>
+        <input type="text" id="description" name="description" required><br>
+
+        <label for="price">Price:</label>
+        <input type="number" id="price" name="price" required><br>
+
+        <label for="discount">Discount:</label>
+        <input type="number" id="discount" name="discount"><br>
+
+        <label for="quantity">Quantity:</label>
+        <input type="number" id="quantity" name="quantity" required><br>
+
+        <button type="submit">Add Product</button>
+    </form>
+
+    <!-- Read Products -->
+    <h2>Products List</h2>
+    {{if .Products}}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Price</th>
+                <th>Discount</th>
+                <th>Quantity</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Products}}
+            <tr>
+                <td>{{.ID}}</td>
+                <td>{{.Name}}</td>
+                <td>{{.Description}}</td>
+                <td>{{.Price}}</td>
+                <td>{{.Discount}}</td>
+                <td>{{.Quantity}}</td>
+                <td>
+                    <!-- Update Product -->
+                    <form method="POST" action="/update" style="display:inline;">
+                        <input type="hidden" name="id" value="{{.ID}}">
+                        <input type="text" name="name" value="{{.Name}}" required>
+                        <input type="text" name="description" value="{{.Description}}" required>
+                        <input type="number" name="price" value="{{.Price}}" required>
+                        <input type="number" name="discount" value="{{.Discount}}">
+                        <input type="number" name="quantity" value="{{.Quantity}}" required>
+                        <button type="submit">Update</button>
+                    </form>
+
+                    <!-- Delete Product -->
+                    <form method="POST" action="/delete" style="display:inline;">
+                        <input type="hidden" name="id" value="{{.ID}}">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p>No products found.</p>
+    {{end}}
+</body>
+</html>
