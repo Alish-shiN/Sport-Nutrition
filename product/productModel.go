@@ -1,7 +1,7 @@
 package product
 
 type Item struct {
-	ID          int64    `bson:"id"`
+	ID          int    `bson:"id"`
 	Name        string `bson:"name"`
 	Description string `bson:"description"`
 	Price       int    `bson:"price"`

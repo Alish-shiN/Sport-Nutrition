@@ -7,28 +7,58 @@ import (
 	"time"
 
 	"onlinestore/mongoDB"
-	
+
 	"strconv"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func atoi(s string) int {
-    value, err := strconv.Atoi(s)
-    if err != nil {
-        return 0
-    }
-    return value
+	value, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return value
 }
 
-func CreateProduct(w http.ResponseWriter, r *http.Request) {
+func getNextID(collection *mongo.Collection, key string) (int, error) {
+	var result struct {
+		Seq int `bson:"seq"`
+	}
+
+	filter := bson.M{"key": key}
+	update := bson.M{"$inc": bson.M{"seq": 1}}
+	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
+
+	err := collection.FindOneAndUpdate(context.Background(), filter, update, opts).Decode(&result)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.Seq, nil
+}
+
+func CreateProduct(w http.ResponseWriter, r *http.Request, db *mongo.Database) {
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
 	r.ParseForm()
+
+	counterCollection := db.Collection("counters")
+	itemCollection := db.Collection("Products")
+
+	newID, err := getNextID(counterCollection, "item_id")
+	if err != nil {
+		http.Error(w, "Failed to generate ID", http.StatusInternalServerError)
+		return
+	}
+
 	item := Item{
+		ID:          newID,
 		Name:        r.FormValue("name"),
 		Description: r.FormValue("description"),
 		Price:       atoi(r.FormValue("price")),
@@ -36,23 +66,51 @@ func CreateProduct(w http.ResponseWriter, r *http.Request) {
 		Quantity:    atoi(r.FormValue("quantity")),
 	}
 
-	collection := mongoDB.GetCollection()
+	//collection := mongoDB.GetCollection()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := collection.InsertOne(ctx, item)
+	_, err = itemCollection.InsertOne(ctx, item)
 	if err != nil {
 		http.Error(w, "Failed to create product", http.StatusInternalServerError)
 		return
 	}
 
+	//_, err := collection.InsertOne(ctx, item)
+	//if err != nil {
+	//	http.Error(w, "Failed to create product", http.StatusInternalServerError)
+	//	return
+	//}
+	cursor, err := itemCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to retrieve items", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var items []Item
+	if err = cursor.All(context.Background(), &items); err != nil {
+		http.Error(w, "Failed to decode items", http.StatusInternalServerError)
+		return
+	}
+
+	// Обновляем id для всех элементов
+	for i, item := range items {
+		_, err := itemCollection.UpdateOne(context.Background(),
+			bson.M{"id": item.ID}, // _id используется MongoDB для уникальности записи
+			bson.M{"$set": bson.M{"id": i + 1}})
+		if err != nil {
+			http.Error(w, "Failed to update product IDs", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-
 func GetProducts(w http.ResponseWriter, r *http.Request) {
 	collection := mongoDB.GetCollection()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	cursor, err := collection.Find(ctx, bson.M{})
@@ -75,7 +133,6 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(products)
 }
-
 
 func GetProductByID(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
@@ -134,7 +191,9 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func DeleteProduct(w http.ResponseWriter, r *http.Request) {
+func DeleteProduct(w http.ResponseWriter, r *http.Request, db *mongo.Database) {
+	r.ParseForm()
+
 	if r.Method != http.MethodPost {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
@@ -143,14 +202,39 @@ func DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	id := atoi(r.FormValue("id"))
 	filter := bson.M{"id": id}
 
-	collection := mongoDB.GetCollection()
+	itemCollection := db.Collection("Products")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := collection.DeleteOne(ctx, filter)
+	_, err := itemCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		http.Error(w, "Failed to delete product", http.StatusInternalServerError)
 		return
+	}
+
+	cursor, err := itemCollection.Find(context.Background(), bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to retrieve items", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var items []Item
+	if err = cursor.All(context.Background(), &items); err != nil {
+		http.Error(w, "Failed to decode items", http.StatusInternalServerError)
+		return
+	}
+
+	// Обновляем id для всех элементов
+	for i, item := range items {
+		_, err := itemCollection.UpdateOne(context.Background(),
+			bson.M{"id": item.ID}, // _id используется MongoDB для уникальности записи
+			bson.M{"$set": bson.M{"id": i + 1}})
+		if err != nil {
+			http.Error(w, "Failed to update product IDs", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)

@@ -8,34 +8,33 @@ import (
 	"net/http"
 	"onlinestore/mongoDB"
 	"onlinestore/product"
-	// "go.mongodb.org/mongo-driver/mongo"
-	// "time"
 )
 
-
-type RequestData struct {	
-	Message string `json:"message"`
+type RequestData struct {
+	Message string `json:"message"` // Структура для парсинга входящих данных в JSON
 }
 
 type ResponseData struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status  string `json:"status"`  // Статус обработки запроса
+	Message string `json:"message"` // Сообщение ответа
 }
 
-
+// Обработчик POST-запроса
 func handlePost(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	if r.Method != "POST" { // Проверка метода запроса
 		http.Error(w, "Method is not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
+	// Инициализация структуры запроса со значением по умолчанию
 	requestData := RequestData{
-		Message : "false",
+		Message: "false",
 	}
 	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&requestData)
+	err := decoder.Decode(&requestData) // Декодирование JSON из тела запроса
 
 	if err != nil {
+		// Возвращаем ошибку, если JSON некорректный
 		response := ResponseData{
 			Status:  "Fail",
 			Message: "Invalid JSON message",
@@ -46,7 +45,7 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if requestData.Message == "false" {
+	if requestData.Message == "false" { // Проверяем, что поле Message содержит валидное значение
 		response := ResponseData{
 			Status:  "Fail",
 			Message: "Invalid JSON message",
@@ -57,59 +56,67 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Client's message:", requestData.Message)
+	fmt.Println("Client's message:", requestData.Message) // Логируем сообщение клиента
 
+	// Формируем успешный ответ
 	response := ResponseData{
 		Status:  "success",
-		Message: "Data is recieved.",
+		Message: "Data is received.",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-
+// Обработчик GET-запроса
 func handleGet(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+	if r.Method != "GET" { // Проверка метода запроса
 		http.Error(w, "Method is not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
 
+	// Формируем успешный ответ
 	response := ResponseData{
 		Status:  "Success",
-		Message: "Data is recieved.",
+		Message: "Data is received.",
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-
-
 func main() {
+	// Подключение к MongoDB
 	client, err := mongoDB.ConnectToMongoDB()
 	if err != nil {
-		log.Fatal()
+		log.Fatal() // Завершаем выполнение, если не удалось подключиться
 	}
 
 	defer func() {
+		// Закрытие соединения при завершении работы программы
 		if err := client.Disconnect(context.TODO()); err != nil {
 			log.Fatal(err)
 		}
 		fmt.Println("Connection to MongoDB is closed")
-	} ()
+	}()
 
-	// database := client.Database("OnlineStore")
-	// collection := database.Collection("Products")
+	db := client.Database("OnlineStore") 
+	// Регистрация маршрутов
+	http.HandleFunc("/post", handlePost) // Обработчик для POST-запросов
+	http.HandleFunc("/get", handleGet)   // Обработчик для GET-запросов
 
-	http.HandleFunc("/post", handlePost)
-	http.HandleFunc("/get", handleGet)
+	http.HandleFunc("/", product.HomePage) // Главная страница
+	http.HandleFunc("/create", func(w http.ResponseWriter, r *http.Request) {
+		// Создание продукта с передачей подключения к базе
+		product.CreateProduct(w, r, db)
+	})
+	http.HandleFunc("/update", product.UpdateProduct) // Обновление продукта
 
-	http.HandleFunc("/", product.HomePage)
-	http.HandleFunc("/create", product.CreateProduct)
-	http.HandleFunc("/update", product.UpdateProduct)
-	http.HandleFunc("/delete", product.DeleteProduct)
+	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
+		// Удаление продукта с передачей подключения к базе
+		product.DeleteProduct(w, r, db)
+	})
 
-	log.Println("Starting server on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Println("Starting server on http://localhost:8080") 
+	if err := http.ListenAndServe(":8080", nil); err != nil { 
 		log.Fatal()
 	}
 }
