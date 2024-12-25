@@ -8,6 +8,8 @@ import (
 
 	"onlinestore/mongoDB"
 
+	"html/template"
+
 	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -134,9 +136,10 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(products)
 }
 
+
 func GetProductByID(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	if id == "" {
+	id := atoi(r.URL.Query().Get("id"))
+	if id == 0 {
 		http.Error(w, "ID is required", http.StatusBadRequest)
 		return
 	}
@@ -155,9 +158,19 @@ func GetProductByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(item)
+	data := PageData{
+		Products: []Item{item}, 
+	}
+	tmpl, err := template.ParseFiles("templates/index.html")
+	if err != nil {
+		http.Error(w, "Failed to parse template", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	tmpl.Execute(w, data)
 }
+
 
 func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

@@ -29,6 +29,8 @@
         <button type="submit">Add Product</button>
     </form>
 
+   
+    
 
     <!-- Read Products -->
     <h2>Products List</h2>
@@ -77,5 +79,14 @@
     {{else}}
     <p>No products found.</p>
     {{end}}
+
+
+
+    <form action="/getByID" method="get">
+        <label for="id">ID of the Product:</label>
+        <input type="number" id="id" name="id"><button type="submit">Search Product</button><br>
+    </form>
+
 </body>
-</html>
+<html>
+   

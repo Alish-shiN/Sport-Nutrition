@@ -98,7 +98,8 @@ func main() {
 		fmt.Println("Connection to MongoDB is closed")
 	}()
 
-	db := client.Database("OnlineStore") 
+	db := client.Database("OnlineStore") // Выбираем базу данных
+
 	// Регистрация маршрутов
 	http.HandleFunc("/post", handlePost) // Обработчик для POST-запросов
 	http.HandleFunc("/get", handleGet)   // Обработчик для GET-запросов
@@ -115,8 +116,10 @@ func main() {
 		product.DeleteProduct(w, r, db)
 	})
 
-	fmt.Println("Starting server on http://localhost:8080") 
-	if err := http.ListenAndServe(":8080", nil); err != nil { 
+	http.HandleFunc("/getByID", product.GetProductByID)
+
+	fmt.Println("Starting server on http://localhost:8080")   // Уведомление о запуске сервера
+	if err := http.ListenAndServe(":8080", nil); err != nil { // Запуск HTTP-сервера
 		log.Fatal()
 	}
 }
